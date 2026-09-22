@@ -9,62 +9,92 @@ import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.xrp.XRPMotor;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
+/** Owns the XRP drivetrain motors and their built-in wheel encoders. */
 public class XRPDrivetrain extends SubsystemBase {
-  private static final double kGearRatio =
-      (30.0 / 14.0) * (28.0 / 16.0) * (36.0 / 9.0) * (26.0 / 8.0); // 48.75:1
-  private static final double kCountsPerMotorShaftRev = 12.0;
-  private static final double kCountsPerRevolution = kCountsPerMotorShaftRev * kGearRatio; // 585.0
-  private static final double kWheelDiameterInch = 2.3622; // 60 mm
 
-  // The XRP has the left and right motors set to
-  // channels 0 and 1 respectively
+  /** Describes the XRP gearbox reduction from motor to wheel. */
+  private static final double kGearRatio =
+      (30.0 / 14.0) * (28.0 / 16.0) * (36.0 / 9.0) * (26.0 / 8.0);
+
+  /** Counts encoder edges for one motor-shaft revolution. */
+  private static final double kCountsPerMotorShaftRev = 12.0;
+
+  /** Converts wheel revolutions into raw encoder counts. */
+  private static final double kCountsPerRevolution = kCountsPerMotorShaftRev * kGearRatio;
+
+  /** Records the XRP wheel diameter in inches. */
+  private static final double kWheelDiameterInch = 2.3622;
+
+  /** Drives the XRP left wheel on its fixed motor channel. */
   private final XRPMotor m_leftMotor = new XRPMotor(0);
+
+  /** Drives the XRP right wheel on its fixed motor channel. */
   private final XRPMotor m_rightMotor = new XRPMotor(1);
 
-  // The XRP has onboard encoders that are hardcoded
-  // to use DIO pins 4/5 and 6/7 for the left and right
+  /** Measures left-wheel movement through the XRP's fixed encoder pins. */
   private final Encoder m_leftEncoder = new Encoder(4, 5);
+
+  /** Measures right-wheel movement through the XRP's fixed encoder pins. */
   private final Encoder m_rightEncoder = new Encoder(6, 7);
 
-  // Set up the differential drive controller
+  /** Sends paired wheel outputs to the two drivetrain motors. */
   private final DifferentialDrive m_diffDrive =
       new DifferentialDrive(m_leftMotor::set, m_rightMotor::set);
 
-  /** Creates a new XRPDrivetrain. */
+  /** Configures XRP encoder distances and motor directions. */
   public XRPDrivetrain() {
-    // Use inches as unit for encoder distances
+
+    // Converts left encoder pulses into inches for future lessons.
     m_leftEncoder.setDistancePerPulse((Math.PI * kWheelDiameterInch) / kCountsPerRevolution);
+
+    // Converts right encoder pulses into inches for future lessons.
     m_rightEncoder.setDistancePerPulse((Math.PI * kWheelDiameterInch) / kCountsPerRevolution);
+
+    // Starts distance measurements from a known zero point.
     resetEncoders();
 
-    // Invert right side since motor is flipped
+    // Matches right-wheel output to the mechanically flipped right motor.
     m_rightMotor.setInverted(true);
+
+    // Leaves the teleop command as the single place that applies stick deadband.
+    m_diffDrive.setDeadband(0.0);
   }
 
-  public void arcadeDrive(double xaxisSpeed, double zaxisRotate) {
-    m_diffDrive.arcadeDrive(xaxisSpeed, zaxisRotate);
+  /** Applies direct, linear output requests to the left and right wheels. */
+  public void tankDrive(double leftSpeed, double rightSpeed) {
+
+    // Preserves the command's analog wheel outputs without squaring them.
+    m_diffDrive.tankDrive(leftSpeed, rightSpeed, false);
   }
 
+  /** Stops both drivetrain wheels through the same linear drive path. */
+  public void stop() {
+
+    // Commands zero output to each wheel.
+    tankDrive(0.0, 0.0);
+  }
+
+  /** Resets both drivetrain distance measurements. */
   public void resetEncoders() {
+
+    // Clears the left distance measurement.
     m_leftEncoder.reset();
+
+    // Clears the right distance measurement.
     m_rightEncoder.reset();
   }
 
+  /** Returns the measured left-wheel distance in inches. */
   public double getLeftDistanceInch() {
+
+    // Provides the converted left encoder distance.
     return m_leftEncoder.getDistance();
   }
 
+  /** Returns the measured right-wheel distance in inches. */
   public double getRightDistanceInch() {
+
+    // Provides the converted right encoder distance.
     return m_rightEncoder.getDistance();
-  }
-
-  @Override
-  public void periodic() {
-    // This method will be called once per scheduler run
-  }
-
-  @Override
-  public void simulationPeriodic() {
-    // This method will be called once per scheduler run during simulation
   }
 }

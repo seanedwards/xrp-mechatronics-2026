@@ -4,44 +4,58 @@
 
 package frc.robot;
 
-import edu.wpi.first.wpilibj.XboxController;
-import frc.robot.commands.ExampleCommand;
-import frc.robot.subsystems.XRPDrivetrain;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.robot.commands.ArmSetpointCommand;
+import frc.robot.commands.TeleopArcadeDriveCommand;
+import frc.robot.subsystems.XRPArm;
+import frc.robot.subsystems.XRPDrivetrain;
 
-/**
- * This class is where the bulk of the robot should be declared. Since Command-based is a
- * "declarative" paradigm, very little robot logic should actually be handled in the {@link Robot}
- * periodic methods (other than the scheduler calls). Instead, the structure of the robot (including
- * subsystems, commands, and button mappings) should be declared here.
- */
+/** Wires the controller, teleop commands, and XRP hardware subsystems together. */
 public class RobotContainer {
-  // The robot's subsystems and commands are defined here...
-  private final XRPDrivetrain m_xrpDrivetrain = new XRPDrivetrain();
 
-  private final ExampleCommand m_autoCommand = new ExampleCommand(m_xrpDrivetrain);
+  /** Reads the Xbox-compatible controller connected at Driver Station port zero. */
+  private final CommandXboxController m_driverController =
+      new CommandXboxController(Constants.OperatorConstants.kDriverControllerPort);
 
-  /** The container for the robot. Contains subsystems, OI devices, and commands. */
+  /** Owns the XRP drivetrain hardware. */
+  private final XRPDrivetrain m_drivetrain = new XRPDrivetrain();
+
+  /** Owns the Servo1 arm hardware. */
+  private final XRPArm m_arm = new XRPArm();
+
+  /** Configures the beginner teleop controller layout. */
   public RobotContainer() {
-    // Configure the button bindings
+
+    // Keeps the left stick driving whenever no other drivetrain command is scheduled.
+    m_drivetrain.setDefaultCommand(
+        new TeleopArcadeDriveCommand(
+            m_drivetrain,
+            () -> Constants.OperatorConstants.kForwardAxisSign * m_driverController.getLeftY(),
+            m_driverController::getLeftX));
+
+    // Connects bumper presses to their one-time arm endpoint commands.
     configureButtonBindings();
   }
 
-  /**
-   * Use this method to define your button->command mappings. Buttons can be created by
-   * instantiating a {@link edu.wpi.first.wpilibj.GenericHID} or one of its subclasses ({@link
-   * edu.wpi.first.wpilibj.Joystick} or {@link XboxController}), and then passing it to a {@link
-   * edu.wpi.first.wpilibj2.command.button.JoystickButton}.
-   */
-  private void configureButtonBindings() {}
+  /** Maps Xbox bumpers to the two fixed Servo1 targets. */
+  private void configureButtonBindings() {
 
-  /**
-   * Use this to pass the autonomous command to the main {@link Robot} class.
-   *
-   * @return the command to run in autonomous
-   */
+    // Selects the zero endpoint when the left bumper is pressed.
+    m_driverController
+        .leftBumper()
+        .onTrue(new ArmSetpointCommand(m_arm, Constants.ArmConstants.kLeftBumperPosition));
+
+    // Selects the one endpoint after the left binding when the right bumper is pressed too.
+    m_driverController
+        .rightBumper()
+        .onTrue(new ArmSetpointCommand(m_arm, Constants.ArmConstants.kRightBumperPosition));
+  }
+
+  /** Provides no autonomous command because this project teaches teleop only. */
   public Command getAutonomousCommand() {
-    // An ExampleCommand will run in autonomous
-    return m_autoCommand;
+
+    // Autonomous is intentionally not part of this teleop lesson.
+    return null;
   }
 }

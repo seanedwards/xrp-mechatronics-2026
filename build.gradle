@@ -41,8 +41,32 @@ test {
 wpi.sim.addGui().defaultEnabled = true
 wpi.sim.addDriverstation()
 
-//Sets the XRP Client Host
-wpi.sim.envVar("HALSIMXRP_HOST", "192.168.42.1")
+// Read the XRP hostname from a dedicated project file so it can change without editing this build logic.
+def xrpHostnameFile = file("XRP-HOST.txt")
+
+// Stop configuration with clear setup guidance when the dedicated hostname file is missing.
+if (!xrpHostnameFile.isFile()) {
+    throw new GradleException("Missing XRP-HOST.txt. Add the XRP hostname on one line, such as xrp-9824-f76f.")
+}
+
+// Remove surrounding whitespace so the hostname file may end with a normal newline.
+def xrpHostname = xrpHostnameFile.text.trim()
+
+// Reject an empty file before trying DNS resolution so the configuration error explains the problem.
+if (xrpHostname.isEmpty()) {
+    throw new GradleException("XRP-HOST.txt is empty. Add the XRP hostname on one line, such as xrp-9824-f76f.")
+}
+
+// Resolve the hostname at configuration time because the XRP simulator accepts only numeric addresses.
+def xrpHostAddress = java.net.InetAddress.getByName(xrpHostname).hostAddress
+
+// Report the numeric address used by the simulator so network setup is easy to verify.
+logger.lifecycle("Resolved XRP host '${xrpHostname}' to ${xrpHostAddress}")
+
+// Pass the resolved numeric XRP address to the simulator client.
+wpi.sim.envVar("HALSIMXRP_HOST", xrpHostAddress)
+
+// Enable the XRP simulator client for desktop simulation.
 wpi.sim.addXRPClient().defaultEnabled = true
 
 // Setting up my Jar File. In this case, adding all libraries into the main jar ('fat jar')
